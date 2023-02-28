@@ -38,7 +38,7 @@ MCP2515::ERROR MCP2515::reset(void)
         printf("spi_device_transmit failed\n");
     }
 
-    vTaskDelay(10 / portTICK_RATE_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 
     uint8_t zeros[14];
     memset(zeros, 0, sizeof(zeros));
@@ -269,14 +269,14 @@ MCP2515::ERROR MCP2515::setOneShotMode(bool set)
     if (set) 
         data = 1U << 3;
     modifyRegister(MCP_CANCTRL, 1U << 3, data);
-    vTaskDelay(10 / portTICK_RATE_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
     bool modeMatch = false;
     for (int i = 0; i < 10; i++) {
         uint8_t ctrlR = readRegister(MCP_CANCTRL);
         modeMatch = (ctrlR & (1U << 3)) == data;
         if (modeMatch)
             break;
-        vTaskDelay(10 / portTICK_RATE_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
     return modeMatch ? ERROR_OK : ERROR_FAIL;
 }
@@ -302,7 +302,7 @@ MCP2515::ERROR MCP2515::setMode(const CANCTRL_REQOP_MODE mode)
             break;
         }
 
-        vTaskDelay(10 / portTICK_RATE_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
     return modeMatch ? ERROR_OK : ERROR_FAIL;
