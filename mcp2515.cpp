@@ -6,9 +6,9 @@
 #include "mcp2515.h"
 
 const struct MCP2515::TXBn_REGS MCP2515::TXB[MCP2515::N_TXBUFFERS] = {
-    {MCP_TXB0CTRL, MCP_TXB0SIDH, MCP_TXB0DATA},
-    {MCP_TXB1CTRL, MCP_TXB1SIDH, MCP_TXB1DATA},
-    {MCP_TXB2CTRL, MCP_TXB2SIDH, MCP_TXB2DATA}
+    {MCP_TXB0CTRL, MCP_TXB0SIDH, MCP_TXB0DATA, INSTRUCTION_RTS_TX0},
+    {MCP_TXB1CTRL, MCP_TXB1SIDH, MCP_TXB1DATA, INSTRUCTION_RTS_TX1},
+    {MCP_TXB2CTRL, MCP_TXB2SIDH, MCP_TXB2DATA, INSTRUCTION_RTS_TX0},
 };
 
 const struct MCP2515::RXBn_REGS MCP2515::RXB[N_RXBUFFERS] = {
@@ -725,6 +725,63 @@ MCP2515::ERROR MCP2515::sendMessage(const TXBn txbn, const struct can_frame *fra
     return ERROR_OK;
 }
 
+MCP2515::ERROR MCP2515::sendMessageSkipStatus(const TXBn txbn, const struct can_frame *frame)
+{
+    if (frame->can_dlc > CAN_MAX_DLEN) {
+        return ERROR_FAILTX;
+    }
+
+    const struct TXBn_REGS *txbuf = &TXB[txbn];
+
+    uint8_t data[15];
+    data[0] = INSTRUCTION_WRITE;
+    data[1] = txbuf->SIDH;
+
+    bool ext = (frame->can_id & CAN_EFF_FLAG);
+    bool rtr = (frame->can_id & CAN_RTR_FLAG);
+    uint32_t id = (frame->can_id & (ext ? CAN_EFF_MASK : CAN_SFF_MASK));
+
+    prepareId(data + 2, ext, id);
+    data[MCP_DLC + 2] = rtr ? (frame->can_dlc | RTR_MASK) : frame->can_dlc;
+    memcpy(&data[MCP_DATA + 2], frame->data, frame->can_dlc);
+
+    spi_transaction_t tx_trans = {};
+    spi_transaction_t * ret_trans;
+    tx_trans.length = ((size_t)(2+5+frame->can_dlc)) * 8;
+    tx_trans.tx_buffer = data;
+    esp_err_t esp_err = spi_device_queue_trans(*spi, &tx_trans, 1);
+    if (esp_err != ESP_OK) {
+        ESP_LOGE("MCP2515", "TX SPI failed: %d", (int) esp_err);
+        return ERROR_FAILTX;
+    }
+    spi_transaction_t ctrl_trans = {};
+    ctrl_trans.length = 1*8;
+    ctrl_trans.flags = SPI_TRANS_USE_TXDATA;
+    ctrl_trans.tx_data[0] = txbuf->TXREQ;
+    ctrl_trans.tx_data[1] = 0;
+    esp_err = spi_device_queue_trans(*spi, &ctrl_trans, 1);
+    if (esp_err != ESP_OK) {
+        ESP_LOGE("MCP2515", "TX CTRL SPI failed: %d", (int) esp_err);
+        // Collect results from TX transmit.
+        spi_device_get_trans_result(*spi, &ret_trans, portMAX_DELAY);
+        return ERROR_FAILTX;
+    }
+    esp_err = spi_device_get_trans_result(*spi, &ret_trans, portMAX_DELAY);
+    if (esp_err != ESP_OK) {
+        ESP_LOGE("MCP2515", "TX SPI Get Results failed: %d", (int) esp_err);
+        // Collect results from Ctrl transmit.
+        spi_device_get_trans_result(*spi, &ret_trans, portMAX_DELAY);
+        return ERROR_FAILTX;
+    }
+    esp_err = spi_device_get_trans_result(*spi, &ret_trans, portMAX_DELAY);
+    if (esp_err != ESP_OK) {
+        ESP_LOGE("MCP2515", "TX Ctrl SPI Get Results failed: %d", (int) esp_err);
+        return ERROR_FAILTX;
+    }
+
+    return ERROR_OK;
+}
+
 MCP2515::ERROR MCP2515::sendMessage(const struct can_frame *frame)
 {
     if (frame->can_dlc > CAN_MAX_DLEN) {
@@ -738,6 +795,25 @@ MCP2515::ERROR MCP2515::sendMessage(const struct can_frame *frame)
         uint8_t ctrlval = readRegister(txbuf->CTRL);
         if ( (ctrlval & TXB_TXREQ) == 0 ) {
             return sendMessage(txBuffers[i], frame);
+        }
+    }
+
+    return ERROR_ALLTXBUSY;
+}
+
+MCP2515::ERROR MCP2515::sendMessageSkipStatus(const struct can_frame *frame)
+{
+    if (frame->can_dlc > CAN_MAX_DLEN) {
+        return ERROR_FAILTX;
+    }
+
+    TXBn txBuffers[N_TXBUFFERS] = {TXB0, TXB1, TXB2};
+
+    for (int i=0; i<N_TXBUFFERS; i++) {
+        const struct TXBn_REGS *txbuf = &TXB[txBuffers[i]];
+        uint8_t ctrlval = readRegister(txbuf->CTRL);
+        if ( (ctrlval & TXB_TXREQ) == 0 ) {
+            return sendMessageSkipStatus(txBuffers[i], frame);
         }
     }
 

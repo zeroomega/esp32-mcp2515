@@ -2,6 +2,7 @@
 #define _MCP2515_H_
 
 #include "driver/spi_master.h"
+#include "esp_log.h"
 
 #include "can.h"
 
@@ -431,9 +432,10 @@ class MCP2515
         static const int N_RXBUFFERS = 2;
 
         static const struct TXBn_REGS {
-            REGISTER CTRL;
-            REGISTER SIDH;
-            REGISTER DATA;
+            REGISTER    CTRL;
+            REGISTER    SIDH;
+            REGISTER    DATA;
+            INSTRUCTION TXREQ;
         } TXB[N_TXBUFFERS];
 
         static const struct RXBn_REGS {
@@ -471,7 +473,11 @@ class MCP2515
         ERROR setFilterMask(const MASK num, const bool ext, const uint32_t ulData);
         ERROR setFilter(const RXF num, const bool ext, const uint32_t ulData);
         ERROR sendMessage(const TXBn txbn, const struct can_frame *frame);
+        ERROR sendMessageSkipStatus(const TXBn txbn, const struct can_frame *frame);
         ERROR sendMessage(const struct can_frame *frame);
+        // Skip the step to look up TX status
+        // Slightly faster than sendMessage
+        ERROR sendMessageSkipStatus(const struct can_frame *frame);
         ERROR readMessage(const RXBn rxbn, struct can_frame *frame);
         ERROR readMessage(struct can_frame *frame);
         bool checkReceive(void);
