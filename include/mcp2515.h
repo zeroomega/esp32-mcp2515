@@ -447,6 +447,8 @@ class MCP2515
 
         spi_device_handle_t *spi;
 
+        uint8_t interrupt_mask;
+
     private:
         ERROR setMode(const CANCTRL_REQOP_MODE mode);
 
@@ -470,6 +472,7 @@ class MCP2515
         ERROR setClkOut(const CAN_CLKOUT divisor);
         ERROR setBitrate(const CAN_SPEED canSpeed);
         ERROR setBitrate(const CAN_SPEED canSpeed, const CAN_CLOCK canClock);
+        void setInterruptMask(const uint8_t mask);
         ERROR setFilterMask(const MASK num, const bool ext, const uint32_t ulData);
         ERROR setFilter(const RXF num, const bool ext, const uint32_t ulData);
         ERROR sendMessage(const TXBn txbn, const struct can_frame *frame);
@@ -488,6 +491,7 @@ class MCP2515
         uint8_t getInterruptMask(void);
         void clearInterrupts(void);
         void clearTXInterrupts(void);
+        void clearRXInterrupts(void);
         uint8_t getStatus(void);
         void clearRXnOVR(void);
         void clearMERR();

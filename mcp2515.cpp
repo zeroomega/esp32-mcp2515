@@ -19,6 +19,7 @@ const struct MCP2515::RXBn_REGS MCP2515::RXB[N_RXBUFFERS] = {
 MCP2515::MCP2515(spi_device_handle_t *s)
 {
     spi = s;
+    interrupt_mask = CANINTF_RX0IF | CANINTF_RX1IF | CANINTF_ERRIF | CANINTF_MERRF;
 }
 
 MCP2515::ERROR MCP2515::reset(void)
@@ -49,7 +50,7 @@ MCP2515::ERROR MCP2515::reset(void)
     setRegister(MCP_RXB0CTRL, 0);
     setRegister(MCP_RXB1CTRL, 0);
 
-    setRegister(MCP_CANINTE, CANINTF_RX0IF | CANINTF_RX1IF | CANINTF_ERRIF | CANINTF_MERRF);
+    setRegister(MCP_CANINTE, interrupt_mask);
 
     // receives all valid messages using either Standard or Extended Identifiers that
     // meet filter criteria. RXF0 is applied for RXB0, RXF1 is applied for RXB1
@@ -644,6 +645,10 @@ void MCP2515::prepareId(uint8_t *buffer, const bool ext, const uint32_t id)
     }
 }
 
+void MCP2515::setInterruptMask(uint8_t mask) {
+    interrupt_mask = mask;
+}
+
 MCP2515::ERROR MCP2515::setFilterMask(const MASK mask, const bool ext, const uint32_t ulData)
 {
     ERROR res = setConfigMode();
@@ -922,6 +927,11 @@ uint8_t MCP2515::getInterruptMask(void)
 void MCP2515::clearTXInterrupts(void)
 {
     modifyRegister(MCP_CANINTF, (CANINTF_TX0IF | CANINTF_TX1IF | CANINTF_TX2IF), 0);
+}
+
+void MCP2515::clearRXInterrupts(void)
+{
+    modifyRegister(MCP_CANINTF, (CANINTF_RX0IF | CANINTF_RX1IF), 0);
 }
 
 void MCP2515::clearRXnOVR(void)
