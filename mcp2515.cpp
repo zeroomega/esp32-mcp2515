@@ -16,10 +16,19 @@ const struct MCP2515::RXBn_REGS MCP2515::RXB[N_RXBUFFERS] = {
     {MCP_RXB1CTRL, MCP_RXB1SIDH, MCP_RXB1DATA, CANINTF_RX1IF}
 };
 
+MCP2515::MCP2515()
+{
+    MCP2515(NULL);
+}
+
 MCP2515::MCP2515(spi_device_handle_t *s)
 {
     spi = s;
     interrupt_mask = CANINTF_RX0IF | CANINTF_RX1IF | CANINTF_ERRIF | CANINTF_MERRF;
+}
+
+void MCP2515::setDeviceHandle(spi_device_handle_t *s) {
+    spi = s;
 }
 
 MCP2515::ERROR MCP2515::reset(void)

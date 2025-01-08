@@ -461,7 +461,9 @@ class MCP2515
         void prepareId(uint8_t *buffer, const bool ext, const uint32_t id);
 
     public:
+        MCP2515();
         MCP2515(spi_device_handle_t *s);
+        void setDeviceHandle(spi_device_handle_t *s);
         ERROR reset(void);
         ERROR setConfigMode();
         ERROR setListenOnlyMode();
