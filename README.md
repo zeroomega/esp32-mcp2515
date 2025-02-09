@@ -214,6 +214,7 @@ Example of interrupt based read (ESP-IDF based)
 
 ```C++
 #define MCP2515_INT_PIN GPIO_NUM_2
+
 bool interrupt = false;
 struct can_frame frame;
 
@@ -222,7 +223,10 @@ static void IRAM_ATTR gpioInterruptCan (void *args) {
 }
 
 void setup() {
+    gpio_install_isr_service(0);
+
     ...
+    
     gpio_set_intr_type(MCP2515_INT_PIN, GPIO_INTR_NEGEDGE); // Falling edge
     gpio_isr_handler_add(MCP2515_INT_PIN, gpioInterruptCan, NULL);
 }
