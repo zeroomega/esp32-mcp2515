@@ -174,7 +174,7 @@ void loop() {
 }
 ```
 
-Example of interrupt based read
+Example of interrupt based read (Ardiuno based)
 
 ```C++
 bool interrupt = false;
@@ -210,6 +210,43 @@ void loop() {
 }
 ```
 
+Example of interrupt based read (ESP-IDF based)
+
+```C++
+#define MCP2515_INT_PIN GPIO_NUM_2
+bool interrupt = false;
+struct can_frame frame;
+
+static void IRAM_ATTR gpioInterruptCan (void *args) {
+    interrupt = true;
+}
+
+void setup() {
+    ...
+    gpio_set_intr_type(MCP2515_INT_PIN, GPIO_INTR_NEGEDGE); // Falling edge
+    gpio_isr_handler_add(MCP2515_INT_PIN, gpioInterruptCan, NULL);
+}
+
+void loop() {
+    if (interrupt) {
+        interrupt = false;
+
+        uint8_t irq = mcp2515.getInterrupts();
+
+        if (irq & MCP2515::CANINTF_RX0IF) {
+            if (mcp2515.readMessage(MCP2515::RXB0, &frame) == MCP2515::ERROR_OK) {
+                // frame contains received from RXB0 message
+            }
+        }
+
+        if (irq & MCP2515::CANINTF_RX1IF) {
+            if (mcp2515.readMessage(MCP2515::RXB1, &frame) == MCP2515::ERROR_OK) {
+                // frame contains received from RXB1 message
+            }
+        }
+    }
+}
+```
 
 ## Set Receive Mask and Filter
 
